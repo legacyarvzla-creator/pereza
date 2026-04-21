@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    
+    <script>
+      // COMPONENTE CHROMA KEY
+      AFRAME.registerComponent('chromakey', {
+        schema: {
+          color: {type: 'color', default: '0 1 0'} // Verde puro por defecto
+        },
+        init: function () {
+          const video = this.el.components.material.material.map.image;
+          if (!video) return;
+
+          this.el.getObject3D('mesh').material.onBeforeCompile = (shader) => {
+            shader.uniforms.chromaColor = { value: new THREE.Color(this.data.color) };
+            shader.fragmentShader = `
+              uniform vec3 chromaColor;
+              ${shader.fragmentShader}
+            `.replace(
+              `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
+              `
+              float dist = distance(diffuseColor.rgb, chromaColor);
+              if (dist < 0.4) { // Ajusta este número (0.4) para la tolerancia del verde
+                discard;
+              } else {
+                gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+              }
+              `
+            );
+          };
+        }
+      });
+    </script>
+  </head>
+
+  <body>
+    <a-scene mindar-image="imageTargetSrc: ./assets/tu-target.mind;" 
+             color-space="sRGB" 
+             renderer="colorManagement: true, physicallyCorrectLights" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+        <video id="videoAr" src="./assets/video-verde.mp4" 
+               preload="auto" loop="true" 
+               crossorigin="anonymous" muted playsinline>
+        </video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-video src="#videoAr" 
+                 chromakey="color: 0 1 0" 
+                 width="1" height="1" 
+                 position="0 0 0" 
+                 rotation="0 0 0">
+        </a-video>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      // Script para que el video arranque al detectar el target
+      const sceneEl = document.querySelector('a-scene');
+      const video = document.querySelector('#videoAr');
+      const targetEl = document.querySelector('[mindar-image-target]');
+
+      targetEl.addEventListener("targetFound", event => {
+        console.log("Target encontrado");
+        video.play();
+      });
+
+      targetEl.addEventListener("targetLost", event => {
+        console.log("Target perdido");
+        video.pause();
+      });
+    </script>
+  </body>
+</html>
