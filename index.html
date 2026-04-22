@@ -1,51 +1,28 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <script>
-        // Este es el "borrador de verde" (Chroma Key)
-        AFRAME.registerComponent('chromakey', {
-            schema: { color: {type: 'color', default: '0 1 0'} },
-            init: function () {
-                const mesh = this.el.getObject3D('mesh');
-                mesh.material.onBeforeCompile = (shader) => {
-                    shader.uniforms.chromaColor = { value: new THREE.Color(this.data.color) };
-                    shader.fragmentShader = `
-                        uniform vec3 chromaColor;
-                        ${shader.fragmentShader}
-                    `.replace(
-                        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                        `float dist = distance(diffuseColor.rgb, chromaColor);
-                         if (dist < 0.4) { discard; } 
-                         else { gl_FragColor = vec4( outgoingLight, diffuseColor.a ); }`
-                    );
-                };
-            }
-        });
-    </script>
-</head>
-<body>
+  </head>
+  <body>
     <a-scene mindar-image="imageTargetSrc: assets/tu-target.mind;" vr-mode-ui="enabled: false">
-        <a-assets>
-            <video id="vid" src="assets/video-verde.mp4" loop="true" crossorigin="anonymous" playsinline muted></video>
-        </a-assets>
+      <a-assets>
+        <video id="vid" src="assets/video-verde.mp4" loop="true" crossorigin="anonymous" playsinline muted></video>
+      </a-assets>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-video src="#vid" width="1" height="1" chromakey="color: 0 1 0"></a-video>
-        </a-entity>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-video src="#vid" width="1" height="1" material="shader: flat; transparent: true; alphaTest: 0.5;"></a-video>
+      </a-entity>
     </a-scene>
 
     <script>
-        // Forzamos el arranque al tocar la pantalla
-        window.addEventListener('click', () => { document.querySelector('#vid').play(); });
-        const target = document.querySelector('[mindar-image-target]');
-        const video = document.querySelector('#vid');
-        target.addEventListener("targetFound", () => video.play());
-        target.addEventListener("targetLost", () => video.pause());
+      // Forzar play al tocar la pantalla (Vital en Android/Redmi)
+      document.body.addEventListener('click', () => {
+        document.querySelector('#vid').play();
+      });
     </script>
-</body>
+  </body>
 </html>
