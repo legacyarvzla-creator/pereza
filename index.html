@@ -62,30 +62,34 @@
         </a-entity>
     </a-scene>
 
-    <script>
-        const overlay = document.querySelector('#ui-overlay');
-        const startBtn = document.querySelector('#start-btn');
-        const video = document.querySelector('#videoAr');
-        const targetEntity = document.querySelector('#ar-target');
+   <script>
+    const overlay = document.querySelector('#ui-overlay');
+    const startBtn = document.querySelector('#start-btn');
+    const video = document.querySelector('#videoAr');
+    const targetEntity = document.querySelector('#ar-target');
 
-        // 1. Al hacer clic en el botón, preparamos el video
-        startBtn.addEventListener('click', () => {
-            video.play().then(() => {
-                video.pause(); // Lo dejamos listo pero pausado hasta ver el target
-                overlay.style.display = 'none';
-            });
+    startBtn.addEventListener('click', () => {
+        // Forzamos la carga manual del video
+        video.load(); 
+        
+        video.play().then(() => {
+            console.log("Video iniciado correctamente");
+            video.pause(); 
+            overlay.style.display = 'none';
+        }).catch((err) => {
+            console.error("Error al activar video:", err);
+            // Si falla, intentamos ocultar el botón igual para ver si la cámara arranca
+            overlay.style.display = 'none';
         });
+    });
 
-        // 2. Control de reproducción al encontrar/perder el target
-        targetEntity.addEventListener("targetFound", () => {
-            console.log("Target detectado");
-            video.play();
-        });
+    targetEntity.addEventListener("targetFound", () => {
+        video.play();
+    });
 
-        targetEntity.addEventListener("targetLost", () => {
-            console.log("Target fuera de vista");
-            video.pause();
-        });
-    </script>
+    targetEntity.addEventListener("targetLost", () => {
+        video.pause();
+    });
+</script>
 </body>
 </html>
