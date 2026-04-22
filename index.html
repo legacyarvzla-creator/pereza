@@ -1,83 +1,91 @@
 <!DOCTYPE html>
-<html>
-  <head>
+<html lang="es">
+<head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <title>Legacy AR - Video Transparente</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
-    <script>
-      // COMPONENTE CHROMA KEY
-      AFRAME.registerComponent('chromakey', {
-        schema: {
-          color: {type: 'color', default: '0 1 0'} // Verde puro por defecto
-        },
-        init: function () {
-          const video = this.el.components.material.material.map.image;
-          if (!video) return;
-
-          this.el.getObject3D('mesh').material.onBeforeCompile = (shader) => {
-            shader.uniforms.chromaColor = { value: new THREE.Color(this.data.color) };
-            shader.fragmentShader = `
-              uniform vec3 chromaColor;
-              ${shader.fragmentShader}
-            `.replace(
-              `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
-              `
-              float dist = distance(diffuseColor.rgb, chromaColor);
-              if (dist < 0.4) { // Ajusta este número (0.4) para la tolerancia del verde
-                discard;
-              } else {
-                gl_FragColor = vec4( outgoingLight, diffuseColor.a );
-              }
-              `
-            );
-          };
+    <style>
+        /* Estilo para el botón de inicio */
+        #ui-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999;
+            background: rgba(0,0,0,0.5);
         }
-      });
-    </script>
-  </head>
+        #start-btn {
+            padding: 20px 40px;
+            font-size: 18px;
+            background-color: #00ffcc;
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
 
-  <body>
-    <a-scene mindar-image="imageTargetSrc: ./assets/tu-target.mind;" 
-             color-space="sRGB" 
-             renderer="colorManagement: true, physicallyCorrectLights" 
-             vr-mode-ui="enabled: false" 
-             device-orientation-permission-ui="enabled: false">
+    <div id="ui-overlay">
+        <button id="start-btn">ENTRAR A LA EXPERIENCIA</button>
+    </div>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./assets/tu-target.mind;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
       
-      <a-assets>
-        <video id="videoAr" src="./assets/video-verde.mp4" 
-               preload="auto" loop="true" 
-               crossorigin="anonymous" muted playsinline>
-        </video>
-      </a-assets>
+        <a-assets>
+            <video id="videoAr" loop="true" crossorigin="anonymous" playsinline muted>
+                <source src="./assets/video-verde.webm" type="video/webm">
+                <source src="./assets/video-verde.mp4" type="video/mp4; codecs='hvc1'">
+            </video>
+        </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video src="#videoAr" 
-                 chromakey="color: 0 1 0" 
-                 width="1" height="1" 
-                 position="0 0 0" 
-                 rotation="0 0 0">
-        </a-video>
-      </a-entity>
+        <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+            <a-video 
+                src="#videoAr" 
+                width="1" height="1" 
+                position="0 0 0" 
+                rotation="0 0 0"
+                transparent="true">
+            </a-video>
+        </a-entity>
     </a-scene>
 
     <script>
-      // Script para que el video arranque al detectar el target
-      const sceneEl = document.querySelector('a-scene');
-      const video = document.querySelector('#videoAr');
-      const targetEl = document.querySelector('[mindar-image-target]');
+        const overlay = document.querySelector('#ui-overlay');
+        const startBtn = document.querySelector('#start-btn');
+        const video = document.querySelector('#videoAr');
+        const targetEntity = document.querySelector('#ar-target');
 
-      targetEl.addEventListener("targetFound", event => {
-        console.log("Target encontrado");
-        video.play();
-      });
+        // 1. Al hacer clic en el botón, preparamos el video
+        startBtn.addEventListener('click', () => {
+            video.play().then(() => {
+                video.pause(); // Lo dejamos listo pero pausado hasta ver el target
+                overlay.style.display = 'none';
+            });
+        });
 
-      targetEl.addEventListener("targetLost", event => {
-        console.log("Target perdido");
-        video.pause();
-      });
+        // 2. Control de reproducción al encontrar/perder el target
+        targetEntity.addEventListener("targetFound", () => {
+            console.log("Target detectado");
+            video.play();
+        });
+
+        targetEntity.addEventListener("targetLost", () => {
+            console.log("Target fuera de vista");
+            video.pause();
+        });
     </script>
-  </body>
+</body>
 </html>
