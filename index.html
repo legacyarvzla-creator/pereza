@@ -1,1 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Legacy AR VZLA - Experiencia Vertical Doble</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: black; }
+        
+        /* Capa de inicio elegante con los colores de tu logo */
+        #ui-overlay {
+            position: absolute; z-index: 9999; 
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: radial-gradient(circle, #2c2c2c 0%, #000000 100%);
+            color: white; text-align: center; padding: 20px;
+        }
 
+        #startButton { 
+            padding: 18px 35px; border-radius: 12px; border: 2px solid #C0C0C0; 
+            background: transparent; color: #C0C0C0; font-size: 1.2rem; 
+            font-weight: bold; cursor: pointer; transition: all 0.3s;
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+
+        #startButton:active { background: #C0C0C0; color: black; }
+
+        .instrucciones { margin-top: 20px; font-size: 0.9rem; opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h2 style="margin-bottom: 10px;">LEGACY AR VZLA</h2>
+        <button id="startButton">ACTIVAR CÁMARA</button>
+        <p class="instrucciones">Toca el botón y apunta a tu franela para ver la magia masiva.</p>
+    </div>
+
+    <a-scene 
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiScanning: no; filterMinCF:0.0001; filterBeta:0.001;" 
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false">
+        
+        <a-assets>
+            <video id="miVideo" src="./video.mp4" preload="auto" loop="true" crossorigin="anonymous" webkit-playsinline playsinline></video>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="target">
+            <a-video src="#miVideo" width="2" height="3.4" position="0 0.65 0" rotation="0 0 0"></a-video>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        const ui = document.querySelector("#ui-overlay");
+        const startButton = document.querySelector("#startButton");
+        const video = document.querySelector("#miVideo");
+        const sceneEl = document.querySelector('a-scene');
+
+        startButton.addEventListener('click', () => {
+            ui.style.display = "none";
+            
+            // Iniciamos el motor de AR
+            sceneEl.systems['mindar-image-system'].start(); 
+            
+            // Pre-carga el video para evitar lag al detectar
+            video.play().then(() => {
+                video.pause(); 
+            }).catch(e => console.log("Esperando detección..."));
+        });
+
+        const targetEntity = document.querySelector('#target');
+        
+        // Control de reproducción estilo Artivive
+        targetEntity.addEventListener("targetFound", () => {
+            video.play();
+        });
+
+        targetEntity.addEventListener("targetLost", () => {
+            video.pause();
+        });
+    </script>
+</body>
+</html>
