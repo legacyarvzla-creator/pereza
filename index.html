@@ -1,66 +1,75 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  </head>
-  <body>
-    <a-scene mindar-image="imageTargetSrc: assets/targets.mind;" vr-mode-ui="enabled: false">
-      <a-assets>
-        <video id="vid" src="assets/video.mp4" loop="true" crossorigin="anonymous" playsinline muted></video>
-      </a-assets>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: black; }
+        #ui { 
+            position: absolute; z-index: 9999; bottom: 30px; left: 50%; 
+            transform: translateX(-50%); width: 100%; text-align: center;
+        }
+        button { 
+            padding: 20px 40px; border-radius: 50px; border: none; 
+            background: #e91e63; color: white; font-size: 18px; 
+            font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        /* Esto asegura que el video oculto no interfiera pero esté listo */
+        #miVideo { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <button id="playButton">VER VIDEO EN PANTALLA COMPLETA</button>
+    </div>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <video id="miVideo" src="./video.mp4" preload="auto" crossorigin="anonymous" webkit-playsinline playsinline></video>
 
-      <a-entity mindar-image-target="targetIndex: 0">
-    <a-box color="red" position="0 0 0" scale="0.5 0.5 0.5"></a-box>
-</a-entity>
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind; autoStart: true;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+        
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0">
+            <a-video src="#miVideo" width="0.6" height="1" position="0 0 0" opacity="1"></a-video>
+        </a-entity>
     </a-scene>
 
     <script>
-    const video = document.querySelector("#vid");
-    const target = document.querySelector('[mindar-image-target]');
+        const btn = document.querySelector("#playButton");
+        const video = document.querySelector("#miVideo");
 
-    // Forzar carga apenas abra la web
-    window.addEventListener('load', () => {
-        video.load();
-    });
+        btn.addEventListener('click', function() {
+            // Quitamos el botón
+            document.querySelector("#ui").style.display = "none";
+            
+            // Iniciamos reproducción
+            video.play();
 
-    // Arrancar video al primer toque del usuario (Vital para Android)
-    window.addEventListener('click', () => {
-        video.play().then(() => {
-            console.log("Video activado por el usuario");
-        }).catch(err => {
-            console.log("Error al reproducir:", err);
+            // TRUCO FINAL PARA PANTALLA COMPLETA
+            // Si es iPhone (Safari) usamos webkitEnterFullscreen
+            if (video.webkitEnterFullscreen) {
+                video.webkitEnterFullscreen();
+            } 
+            // Si es Android usamos el estándar
+            else if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.webkitRequestFullscreen) {
+                video.webkitRequestFullscreen();
+            }
         });
-    });
 
-    // Control por Target
-    target.addEventListener("targetFound", () => {
-        console.log("Target detectado");
-        video.play();
-    });
+        // Detectar cuando el video termina o el usuario cierra la pantalla completa
+        const cerrarVideo = () => {
+            video.pause();
+            // Opcional: recargar la página para volver a escanear
+            // window.location.reload(); 
+        };
 
-    target.addEventListener("targetLost", () => {
-        video.pause();
-    });
-<script>
-    const video = document.querySelector("#vid");
-    const sceneEl = document.querySelector('a-scene');
-
-    // Forzar el play al primer toque
-    document.body.addEventListener('click', () => {
-        video.play();
-        console.log("Video forzado");
-    });
-
-    // Evento cuando MindAR detecta la imagen
-    const targetEl = document.querySelector('[mindar-image-target]');
-    targetEl.addEventListener("targetFound", event => {
-        console.log("Imagen detectada");
-        video.play();
-    });
-</script>
-  </body>
-</html>     
+        video.addEventListener('webkitendfullscreen', cerrarVideo);
+        video.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) cerrarVideo();
+        });
+    </script>
+</body>
+</html>
