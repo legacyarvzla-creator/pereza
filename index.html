@@ -19,10 +19,32 @@
     </a-scene>
 
     <script>
-      // Forzar play al tocar la pantalla (Vital en Android/Redmi)
-      document.body.addEventListener('click', () => {
-        document.querySelector('#vid').play();
-      });
-    </script>
+    const video = document.querySelector("#vid");
+    const target = document.querySelector('[mindar-image-target]');
+
+    // Forzar carga apenas abra la web
+    window.addEventListener('load', () => {
+        video.load();
+    });
+
+    // Arrancar video al primer toque del usuario (Vital para Android)
+    window.addEventListener('click', () => {
+        video.play().then(() => {
+            console.log("Video activado por el usuario");
+        }).catch(err => {
+            console.log("Error al reproducir:", err);
+        });
+    });
+
+    // Control por Target
+    target.addEventListener("targetFound", () => {
+        console.log("Target detectado");
+        video.play();
+    });
+
+    target.addEventListener("targetLost", () => {
+        video.pause();
+    });
+</script>
   </body>
 </html>
