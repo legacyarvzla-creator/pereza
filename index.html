@@ -6,7 +6,6 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <script>
-        // COMPONENTE PARA ELIMINAR EL FONDO VERDE
         AFRAME.registerComponent('chromakey', {
             schema: { color: {type: 'color', default: '0 1 0'} },
             init: function () {
@@ -37,6 +36,7 @@
             padding: 20px 40px; border-radius: 50px; border: none; 
             background: #00ffcc; color: black; font-size: 18px; 
             font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            cursor: pointer;
         }
     </style>
 </head>
@@ -45,14 +45,18 @@
         <button id="playButton">INICIAR EXPERIENCIA AR</button>
     </div>
 
-    <video id="miVideo" src="./video.mp4" preload="auto" crossorigin="anonymous" muted playsinline webkit-playsinline loop></video>
+    <video id="miVideo" src="./assets/video.mp4" preload="auto" crossorigin="anonymous" muted playsinline webkit-playsinline loop></video>
 
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true; uiLoading: no;" 
+             color-space="sRGB" 
+             renderer="colorManagement: true, physicallyCorrectLights" 
+             vr-mode-ui="enabled: false" 
+             device-orientation-permission-ui="enabled: false">
         
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-video src="#miVideo" width="1" height="1" position="0 0 0" chromakey="color: 0 1 0"></a-video>
+            <a-video src="#miVideo" width="1" height="1" position="0 0 0" chromakey="color: 0 1 0" material="shader: flat;"></a-video>
         </a-entity>
     </a-scene>
 
@@ -62,14 +66,18 @@
 
         btn.addEventListener('click', function() {
             document.querySelector("#ui").style.display = "none";
-            video.play(); // Esto activa el video para que el Redmi lo suelte
+            video.play();
         });
 
-        // Control de reproducción automática al detectar la franela
         const target = document.querySelector('[mindar-image-target]');
-        target.addEventListener("targetFound", () => { video.play(); });
-        target.addEventListener("targetLost", () => { video.pause(); });
+        target.addEventListener("targetFound", () => { 
+            console.log("Encontrado");
+            video.play(); 
+        });
+        target.addEventListener("targetLost", () => { 
+            console.log("Perdido");
+            video.pause(); 
+        });
     </script>
 </body>
 </html>
-   
