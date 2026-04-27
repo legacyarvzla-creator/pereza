@@ -6,72 +6,58 @@
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.1/dist/mindar-image-aframe.prod.js"></script>
 
-  <script>
+ <script>
   AFRAME.registerComponent('video-alpha-sbs', {
     init: function () {
       const el = this.el;
-
-      // Esperamos a que la entidad esté cargada para manipular el material
-      el.addEventListener('loaded', () => {
+      
+      // Forzamos la actualización cuando el video esté listo
+      el.addEventListener('materialtextureloaded', () => {
         const mesh = el.getObject3D('mesh');
-        if (!mesh) return;
-
         const material = mesh.material;
-        material.transparent = true;
 
         material.onBeforeCompile = (shader) => {
           shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <clipping_planes_fragment>',
+            '#include <map_fragment>',
             `
-            #include <clipping_planes_fragment>
+            // Leemos la textura del video
+            // La mitad superior para el color (y de 0.5 a 1.0)
+            vec4 colorPart = texture2D(map, vec2(vUv.x, vUv.y * 0.5 + 0.5));
+            // La mitad inferior para el alfa (y de 0.0 a 0.5)
+            vec4 alphaPart = texture2D(map, vec2(vUv.x, vUv.y * 0.5));
             
-            // Recalculamos las UVs: Mitad superior para color, mitad inferior para alfa
-            vec2 uvColor = vec2(vUv.x, vUv.y * 0.5 + 0.5);
-            vec2 uvAlpha = vec2(vUv.x, vUv.y * 0.5);
-            
-            vec4 texColor = texture2D(map, uvColor);
-            vec4 texAlpha = texture2D(map, uvAlpha);
-            
-            gl_FragColor = vec4(texColor.rgb, texAlpha.r);
+            diffuseColor = vec4(colorPart.rgb, alphaPart.r);
             `
-          );
-          
-          // Esto evita que A-Frame use su lógica por defecto de transparencia
-          shader.fragmentShader = shader.fragmentShader.replace(
-            'gl_FragColor = vec4( color, diffuseColor.a );',
-            ''
           );
         };
-        
         material.needsUpdate = true;
       });
     }
   });
-</script> 
+</script>
   </head>
 
   <body>
-    <a-scene mindar-image="imageTargetSrc: ./targets.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-      
-      <a-assets>
-  <video id="vid" src="Video_WebAR.mp4" 
-         preload="auto" loop="true" 
-         crossorigin="anonymous" playsinline webkit-playsinline>
-  </video>
-</a-assets>
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind;" color-space="sRGB" renderer="colorManagement: true" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+  
+  <a-assets>
+    <video id="vid" src="Video_WebAR.mp4" 
+           preload="auto" loop="true" 
+           crossorigin="anonymous" playsinline webkit-playsinline>
+    </video>
+  </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <a-entity mindar-image-target="targetIndex: 0">
-        <a-video src="#vid" 
-                 video-alpha-sbs
-                 position="0 0 0" 
-                 rotation="0 0 0" 
-                 width="1" height="1">
-        </a-video>
-      </a-entity>
-    </a-scene>
-
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-plane material="src: #vid; transparent: true; shader: flat" 
+             video-alpha-sbs
+             position="0 0 0" 
+             rotation="0 0 0" 
+             width="1" height="1">
+    </a-plane>
+  </a-entity>
+</a-scene>
     <script>
       // Auto-reproducir cuando se detecte el target (opcional)
       const targetEl = document.querySelector('[mindar-image-target]');
