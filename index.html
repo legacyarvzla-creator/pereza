@@ -6,31 +6,48 @@
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.1/dist/mindar-image-aframe.prod.js"></script>
 
-    <script>
-      // COMPONENTE PARA PROCESAR EL VIDEO SIDE-BY-SIDE
-      AFRAME.registerComponent('video-alpha-sbs', {
-        init: function () {
-          const mesh = this.el.getObject3D('mesh');
-          if (!mesh) return;
+  <script>
+  AFRAME.registerComponent('video-alpha-sbs', {
+    init: function () {
+      const el = this.el;
 
-          mesh.material.onBeforeCompile = (shader) => {
-            shader.fragmentShader = shader.fragmentShader.replace(
-              'gl_FragColor = vec4( color, diffuseColor.a );',
-              `
-              // La mitad superior (y > 0.5) es el color
-              vec4 colorUpper = texture2D(map, vec2(vUv.x, vUv.y * 0.5 + 0.5));
-              // La mitad inferior (y < 0.5) es la máscara alfa
-              vec4 colorLower = texture2D(map, vec2(vUv.x, vUv.y * 0.5));
-              
-              // Usamos el canal rojo de la parte inferior como valor de transparencia
-              gl_FragColor = vec4(colorUpper.rgb, colorLower.r);
-              `
-            );
-          };
-          mesh.material.transparent = true;
-        }
+      // Esperamos a que la entidad esté cargada para manipular el material
+      el.addEventListener('loaded', () => {
+        const mesh = el.getObject3D('mesh');
+        if (!mesh) return;
+
+        const material = mesh.material;
+        material.transparent = true;
+
+        material.onBeforeCompile = (shader) => {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <clipping_planes_fragment>',
+            `
+            #include <clipping_planes_fragment>
+            
+            // Recalculamos las UVs: Mitad superior para color, mitad inferior para alfa
+            vec2 uvColor = vec2(vUv.x, vUv.y * 0.5 + 0.5);
+            vec2 uvAlpha = vec2(vUv.x, vUv.y * 0.5);
+            
+            vec4 texColor = texture2D(map, uvColor);
+            vec4 texAlpha = texture2D(map, uvAlpha);
+            
+            gl_FragColor = vec4(texColor.rgb, texAlpha.r);
+            `
+          );
+          
+          // Esto evita que A-Frame use su lógica por defecto de transparencia
+          shader.fragmentShader = shader.fragmentShader.replace(
+            'gl_FragColor = vec4( color, diffuseColor.a );',
+            ''
+          );
+        };
+        
+        material.needsUpdate = true;
       });
-    </script>
+    }
+  });
+</script> 
   </head>
 
   <body>
