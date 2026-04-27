@@ -1,83 +1,72 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    
+  <head>
+    <meta charset="utf-8">
+    <title>WebAR Alpha Video - Side-by-Side</title>
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.1/dist/mindar-image-aframe.prod.js"></script>
+
     <script>
-        AFRAME.registerComponent('chromakey', {
-            schema: { color: {type: 'color', default: '0 1 0'} },
-            init: function () {
-                const mesh = this.el.getObject3D('mesh');
-                mesh.material.onBeforeCompile = (shader) => {
-                    shader.uniforms.chromaColor = { value: new THREE.Color(this.data.color) };
-                    shader.fragmentShader = `
-                        uniform vec3 chromaColor;
-                        ${shader.fragmentShader}
-                    `.replace(
-                        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
-                        `float dist = distance(diffuseColor.rgb, chromaColor);
-                         if (dist < 0.4) { discard; } 
-                         else { gl_FragColor = vec4( outgoingLight, diffuseColor.a ); }`
-                    );
-                };
-            }
-        });
+      // COMPONENTE PARA PROCESAR EL VIDEO SIDE-BY-SIDE
+      AFRAME.registerComponent('video-alpha-sbs', {
+        init: function () {
+          const mesh = this.el.getObject3D('mesh');
+          if (!mesh) return;
+
+          mesh.material.onBeforeCompile = (shader) => {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              'gl_FragColor = vec4( color, diffuseColor.a );',
+              `
+              // La mitad superior (y > 0.5) es el color
+              vec4 colorUpper = texture2D(map, vec2(vUv.x, vUv.y * 0.5 + 0.5));
+              // La mitad inferior (y < 0.5) es la máscara alfa
+              vec4 colorLower = texture2D(map, vec2(vUv.x, vUv.y * 0.5));
+              
+              // Usamos el canal rojo de la parte inferior como valor de transparencia
+              gl_FragColor = vec4(colorUpper.rgb, colorLower.r);
+              `
+            );
+          };
+          mesh.material.transparent = true;
+        }
+      });
     </script>
+  </head>
 
-    <style>
-        body { margin: 0; overflow: hidden; background-color: black; }
-        #ui { 
-            position: absolute; z-index: 9999; bottom: 30px; left: 50%; 
-            transform: translateX(-50%); width: 100%; text-align: center;
-        }
-        button { 
-            padding: 20px 40px; border-radius: 50px; border: none; 
-            background: #00ffcc; color: black; font-size: 18px; 
-            font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <div id="ui">
-        <button id="playButton">INICIAR EXPERIENCIA AR</button>
-    </div>
+  <body>
+    <a-scene mindar-image="imageTargetSrc: ./targets.mind;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+  <video id="vid" src="Video_WebAR.mp4" 
+         preload="auto" loop="true" 
+         crossorigin="anonymous" playsinline webkit-playsinline>
+  </video>
+</a-assets>
 
-    <video id="miVideo" src="./assets/video.mp4" preload="auto" crossorigin="anonymous" muted playsinline webkit-playsinline loop></video>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true; uiLoading: no;" 
-             color-space="sRGB" 
-             renderer="colorManagement: true, physicallyCorrectLights" 
-             vr-mode-ui="enabled: false" 
-             device-orientation-permission-ui="enabled: false">
-        
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-        <a-entity mindar-image-target="targetIndex: 0">
-            <a-video src="#miVideo" width="1" height="1" position="0 0 0" chromakey="color: 0 1 0" material="shader: flat;"></a-video>
-        </a-entity>
+      <a-entity mindar-image-target="targetIndex: 0">
+        <a-video src="#vid" 
+                 video-alpha-sbs
+                 position="0 0 0" 
+                 rotation="0 0 0" 
+                 width="1" height="1">
+        </a-video>
+      </a-entity>
     </a-scene>
 
     <script>
-        const btn = document.querySelector("#playButton");
-        const video = document.querySelector("#miVideo");
+      // Auto-reproducir cuando se detecte el target (opcional)
+      const targetEl = document.querySelector('[mindar-image-target]');
+      const video = document.querySelector('#vid');
+      
+      targetEl.addEventListener("targetFound", event => {
+        video.play();
+      });
 
-        btn.addEventListener('click', function() {
-            document.querySelector("#ui").style.display = "none";
-            video.play();
-        });
-
-        const target = document.querySelector('[mindar-image-target]');
-        target.addEventListener("targetFound", () => { 
-            console.log("Encontrado");
-            video.play(); 
-        });
-        target.addEventListener("targetLost", () => { 
-            console.log("Perdido");
-            video.pause(); 
-        });
+      targetEl.addEventListener("targetLost", event => {
+        video.pause();
+      });
     </script>
-</body>
+  </body>
 </html>
