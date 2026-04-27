@@ -6,33 +6,32 @@
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.1/dist/mindar-image-aframe.prod.js"></script>
 
- <script>
-  AFRAME.registerComponent('video-alpha-sbs', {
-    init: function () {
-      const el = this.el;
-      
-      // Forzamos la actualización cuando el video esté listo
-      el.addEventListener('materialtextureloaded', () => {
-        const mesh = el.getObject3D('mesh');
-        const material = mesh.material;
-
-        material.onBeforeCompile = (shader) => {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <map_fragment>',
-            `
-            // Leemos la textura del video
-            // La mitad superior para el color (y de 0.5 a 1.0)
-            vec4 colorPart = texture2D(map, vec2(vUv.x, vUv.y * 0.5 + 0.5));
-            // La mitad inferior para el alfa (y de 0.0 a 0.5)
-            vec4 alphaPart = texture2D(map, vec2(vUv.x, vUv.y * 0.5));
-            
-            diffuseColor = vec4(colorPart.rgb, alphaPart.r);
-            `
-          );
-        };
-        material.needsUpdate = true;
-      });
-    }
+<script>
+  AFRAME.registerShader('video-alpha-sbs-shader', {
+    schema: {
+      src: {type: 'map', is: 'uniform'}
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform sampler2D src;
+      void main() {
+        // Mapeo manual: mitad superior para color, mitad inferior para transparencia
+        vec2 uvColor = vec2(vUv.x, vUv.y * 0.5 + 0.5);
+        vec2 uvAlpha = vec2(vUv.x, vUv.y * 0.5);
+        
+        vec4 texColor = texture2D(src, uvColor);
+        vec4 texAlpha = texture2D(src, uvAlpha);
+        
+        gl_FragColor = vec4(texColor.rgb, texAlpha.r);
+      }
+    `
   });
 </script>
   </head>
@@ -50,13 +49,10 @@
   <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
   <a-entity mindar-image-target="targetIndex: 0">
-    <a-plane material="src: #vid; transparent: true; shader: flat" 
-             video-alpha-sbs
-             position="0 0 0" 
-             rotation="0 0 0" 
-             width="1" height="1">
-    </a-plane>
+  <a-entity geometry="primitive: plane; width: 1; height: 1"
+            material="shader: video-alpha-sbs-shader; src: #vid; transparent: true">
   </a-entity>
+</a-entity>
 </a-scene>
     <script>
       // Auto-reproducir cuando se detecte el target (opcional)
